@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Your Eligible Schemes — Jan Suvidha Portal{% endblock %}
+{% block body_class %}results-page{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav class="navbar" style="position:relative;margin-bottom:24px;">
+        <div class="navbar-brand">
+            <div class="icon">🏛️</div><span>Jan Suvidha</span>
+        </div>
+        <div class="navbar-links">
+            <a href="/" class="btn btn-outline" style="padding:8px 20px;font-size:13px;">
+                <i class="fas fa-home"></i> Home
+            </a>
+        </div>
+    </nav>
+
+    <div class="results-header" id="resultsHeader">
+        <h1 id="resultsTitle">🎉 Your Eligible Schemes</h1>
+        <p id="resultsSubtitle">Based on your answers, here are the schemes you qualify for</p>
+        <div class="results-count" id="resultsCount">
+            <i class="fas fa-check-circle"></i>
+            <span>Loading...</span>
+        </div>
+    </div>
+
+    <div class="scheme-cards" id="schemeCards">
+        <div class="text-center mt-4">
+            <div class="spinner" style="margin:0 auto;"></div>
+            <p class="mt-2" style="color:var(--text-muted);">Loading your results...</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/voice.js' %}"></script>
+<script>
+    const LANG = '{{ lang }}';
+    // Eligible schemes injected from Django session
+    const sessionSchemes = {{ schemes_json| safe }};
+
+    const catIcons = { farmer: '🌾', women: '👩', housing: '🏠', education: '📚', elderly: '👴', disability: '♿', health: '💊', employment: '💼', digital: '💻' };
+    const catClasses = { farmer: 'cat-farmer', women: 'cat-women', housing: 'cat-housing', education: 'cat-education', elderly: 'cat-elderly', disability: 'cat-disability', health: 'cat-health', employment: 'cat-employment', digital: 'cat-digital' };
+    const docLabels = {
+        aadhaar_card: 'Aadhaar Card', land_record: 'Land Record', bank_passbook: 'Bank Passbook',
+        income_certificate: 'Income Certificate', caste_certificate: 'Caste Certificate',
+        crop_sowing_certificate: 'Crop Sowing Certificate', bpl_card: 'BPL Card',
+        age_proof: 'Age Proof', disability_certificate: 'Disability Certificate',
+        pregnancy_certificate: 'Pregnancy Certificate', education_certificate: 'Education Certificate',
+        business_plan: 'Business Plan', address_proof: 'Address Proof', family_id_card: 'Family ID Card',
+    };
+
+    function renderSchemes(schemes) {
+        const container = document.getElementById('schemeCards');
+        const countEl = document.getElementById('resultsCount');
+        countEl.innerHTML = `<i class="fas fa-check-circle"></i><span>${schemes.length} Scheme(s) Found</span>`;
+
+        if (!schemes || schemes.length === 0) {
+            container.innerHTML = `<div class="card text-center" style="padding:40px;">
+            <i class="fas fa-search" style="font-size:48px;color:var(--text-muted);margin-bottom:16px;"></i>
+            <h3>No schemes found</h3>
+            <p style="color:var(--text-secondary);">Try updating your answers for better results.</p>
+            <a href="/questionnaire/" class="btn btn-primary mt-3"><i class="fas fa-redo"></i> Try Again</a>
+        </div>`;
+            return;
+        }
+
+        container.innerHTML = schemes.map(s => {
+            const catClass = catClasses[s.category] || 'cat-farmer';
+            const catIcon = catIcons[s.category] || '📋';
+            const matchClass = s.is_full_match ? 'match-full' : 'match-partial';
+            const matchLabel = s.is_full_match ? '✅ Full Match' : '⚠️ Partial Match';
+
+            // Benefit probability formula: 60% eligibility match + 40% document completeness
+            const docCompleteness = 0; // No docs uploaded yet on results page
+            const eligPart = (s.match_score / 100) * 60;
+            const docPart = docCompleteness * 0.4;
+            const benefitProb = Math.round(eligPart + docPart);
+            const probClass = benefitProb >= 70 ? 'prob-high' : benefitProb >= 40 ? 'prob-medium' : 'prob-low';
+
+            // Required documents list
+            const docsList = (s.required_documents || []).map(d =>
+                `<div class="doc-chip"><i class="fas fa-file-alt"></i> ${docLabels[d] || d}</div>`
+            ).join('');
+
+            return `<div class="scheme-card" id="scheme-${s.scheme_id}">
+            <div class="scheme-card-header">
+                <span class="scheme-category ${catClass}">${catIcon} ${s.category}</span>
+                <span class="scheme-match ${matchClass}">${matchLabel} (${s.match_score}%)</span>
+            </div>
+            <div class="scheme-card-body">
+                <div class="scheme-name">${s.name}</div>
+                <div class="scheme-desc">${s.description}</div>
+                <div class="scheme-meta">
+                    <div class="meta-item"><i class="fas fa-rupee-sign"></i> Benefit: <strong>${s.benefit_amount}</strong></div>
+                    <div class="meta-item"><i class="fas fa-calendar"></i> Last Date: <strong>${s.last_date}</strong></div>
+                </div>
+
+                <!-- Required Documents Section -->
+                <div class="docs-section">
+                    <div class="docs-title"><i class="fas fa-file-check"></i> Required Documents (${s.required_documents ? s.required_documents.length : 0})</div>
+                    <div class="docs-chips">${docsList}</div>
+                </div>
+
+                <!-- Benefit Probability -->
+                <div class="probability-section">
+                    <div class="prob-label">
+                        <span>🎯 Chance of Getting Benefit</span>
+                        <span class="prob-value" id="prob-${s.scheme_id}" style="font-weight:700;color:var(--text-primary);">${benefitProb}%</span>
+                    </div>
+                    <div class="prob-bar"><div class="prob-fill ${probClass}" id="probbar-${s.scheme_id}" style="width:${benefitProb}%"></div></div>
+                    <div class="prob-formula">
+                        <span><i class="fas fa-check-circle"></i> Eligibility: ${s.match_score}% × 60%</span>
+                        <span><i class="fas fa-file-upload"></i> Documents: 0% × 40%</span>
+                    </div>
+                    <p class="prob-hint">⬆️ Upload documents to increase your benefit probability!</p>
+                </div>
+            </div>
+            <div class="scheme-card-footer">
+                <a href="/documents/${s.scheme_id}/" class="btn btn-primary" style="padding:10px 24px;font-size:14px;">
+                    <i class="fas fa-upload"></i> Upload Documents & Verify
+                </a>
+                <button class="btn btn-outline" style="padding:10px 20px;font-size:14px;" onclick="speakScheme('${s.scheme_id}')">
+                    <i class="fas fa-volume-up"></i> Read Aloud
+                </button>
+            </div>
+        </div>`;
+        }).join('');
+    }
+
+    function speakScheme(schemeId) {
+        const scheme = sessionSchemes.find(s => s.scheme_id === schemeId);
+        if (scheme) {
+            speakText(`${scheme.name}. ${scheme.description}. Benefit amount: ${scheme.benefit_amount}.`, LANG);
+        }
+    }
+
+    // Load directly from session data
+    if (sessionSchemes && sessionSchemes.length > 0) {
+        renderSchemes(sessionSchemes);
+    } else {
+        document.getElementById('schemeCards').innerHTML = `
+    <div class="card text-center" style="padding:40px;">
+        <i class="fas fa-exclamation-triangle" style="font-size:48px;color:var(--secondary);margin-bottom:16px;"></i>
+        <h3>No results found</h3>
+        <p class="mt-1" style="color:var(--text-secondary);">Please complete the questionnaire first.</p>
+        <a href="/questionnaire/" class="btn btn-primary mt-3"><i class="fas fa-redo"></i> Start Questionnaire</a>
+    </div>`;
+        document.getElementById('resultsCount').innerHTML = '<i class="fas fa-exclamation-circle"></i><span>0 Schemes</span>';
+    }
+</script>
+{% endblock %}

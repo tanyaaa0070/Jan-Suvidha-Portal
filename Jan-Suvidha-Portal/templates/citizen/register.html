@@ -1,0 +1,759 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Register — Jan Suvidha Portal{% endblock %}
+{% block body_class %}register-page{% endblock %}
+
+{% block content %}
+<div class="register-wrapper">
+    <div class="register-card card">
+        <div class="card-icon"><i class="fas fa-user-plus"></i></div>
+        <h1 id="regTitle">Create Your Profile</h1>
+        <p class="subtitle" id="regSubtitle">Enter your details to find eligible schemes</p>
+
+        <!-- Info Banner -->
+        <div class="info-banner" id="infoBanner">
+            <div class="info-icon"><i class="fas fa-lightbulb"></i></div>
+            <div class="info-text" id="infoText">
+                We'll use your details to search 15+ government welfare schemes and find the best matches for you. It
+                only takes 2 minutes!
+            </div>
+        </div>
+
+        <form id="registerForm">
+            <div class="form-group">
+                <label class="form-label" id="labelName">Your Name</label>
+                <input type="text" class="form-input" id="nameInput" placeholder="Enter your full name" required>
+                <span class="form-hint" id="hintName">As it appears on your Aadhaar/ID card</span>
+            </div>
+            <div class="form-group">
+                <label class="form-label" id="labelPhone">Phone Number</label>
+                <div class="phone-input-wrapper">
+                    <span class="phone-prefix">+91</span>
+                    <input type="tel" class="form-input" id="phoneInput" placeholder="10-digit mobile number"
+                        maxlength="10" required style="padding-left: 52px;">
+                </div>
+                <span class="form-hint" id="hintPhone">We'll send a one-time verification code</span>
+            </div>
+            <div class="form-group">
+                <label class="form-label" id="labelLang">Preferred Language</label>
+                <select class="form-select" id="langSelect">
+                    <option value="en">English</option>
+                    <option value="hi">हिन्दी (Hindi)</option>
+                    <option value="kn">ಕನ್ನಡ (Kannada)</option>
+                    <option value="te">తెలుగు (Telugu)</option>
+                    <option value="ta">தமிழ் (Tamil)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-wrapper">
+                    <input type="checkbox" id="whatsappConsent" checked>
+                    <span id="consentText">Send me reminders on WhatsApp so I don't miss any benefits 📲</span>
+                </label>
+            </div>
+
+            <div id="otpSection" class="otp-section hidden">
+                <div class="otp-sent">
+                    <i class="fas fa-check-circle"></i>
+                    <span id="otpMsg">OTP sent to your phone (simulated)</span>
+                </div>
+                <div class="form-group mt-2">
+                    <label class="form-label">Enter OTP</label>
+                    <input type="text" class="form-input" id="otpInput" placeholder="Enter 4-digit OTP" maxlength="4"
+                        value="1234">
+                    <span class="form-hint">For demo, OTP is pre-filled as 1234</span>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;"
+                id="submitBtn">
+                <i class="fas fa-arrow-right"></i>
+                <span id="submitText">Continue</span>
+            </button>
+        </form>
+
+        <div class="trust-badges">
+            <div class="trust-item"><i class="fas fa-shield-alt"></i> Data Safe</div>
+            <div class="trust-item"><i class="fas fa-lock"></i> Encrypted</div>
+            <div class="trust-item"><i class="fas fa-graduation-cap"></i> Academic Only</div>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Voice Assistant (Alexa-style) -->
+<div class="voice-assistant-fab" id="voiceFab" onclick="toggleVoiceAssistant()">
+    <div class="fab-pulse"></div>
+    <div class="fab-icon" id="fabIcon">
+        <i class="fas fa-microphone"></i>
+    </div>
+    <div class="fab-label" id="fabLabel">Voice Guide</div>
+</div>
+
+<!-- Voice Assistant Panel -->
+<div class="voice-panel hidden" id="voicePanel">
+    <div class="voice-panel-header">
+        <div class="voice-avatar">
+            <div class="voice-ring"></div>
+            🤖
+        </div>
+        <div>
+            <h3>Jan Suvidha Voice Guide</h3>
+            <p id="voiceStatus">Ready to help you</p>
+        </div>
+        <button class="voice-close" onclick="closeVoicePanel()"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="voice-transcript" id="voiceTranscript">
+        <div class="voice-bubble">
+            <span id="currentSpeechText">Click "Start Guide" to hear step-by-step instructions.</span>
+        </div>
+    </div>
+    <div class="voice-controls">
+        <button class="voice-ctrl-btn play" id="playBtn" onclick="startVoiceGuide()">
+            <i class="fas fa-play"></i> Start Guide
+        </button>
+        <button class="voice-ctrl-btn pause hidden" id="pauseBtn" onclick="pauseGuide()">
+            <i class="fas fa-pause"></i> Pause
+        </button>
+        <button class="voice-ctrl-btn next" id="nextBtn" onclick="nextSentence()">
+            <i class="fas fa-forward"></i> Next
+        </button>
+        <button class="voice-ctrl-btn repeat" onclick="repeatSentence()">
+            <i class="fas fa-redo"></i> Repeat
+        </button>
+    </div>
+    <div class="voice-progress">
+        <div class="voice-progress-bar" id="voiceProgressBar" style="width:0%"></div>
+    </div>
+    <div class="voice-lang-selector">
+        <span>Language:</span>
+        <select id="voiceLangSelect" onchange="changeVoiceLang(this.value)">
+            <option value="en">English</option>
+            <option value="hi">हिन्दी</option>
+            <option value="kn">ಕನ್ನಡ</option>
+            <option value="te">తెలుగు</option>
+            <option value="ta">தமிழ்</option>
+        </select>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/voice.js' %}"></script>
+<script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const lang = urlParams.get('lang') || localStorage.getItem('janSuvidhaLang') || 'en';
+    document.getElementById('langSelect').value = lang;
+    document.getElementById('voiceLangSelect').value = lang;
+
+    // ──── Voice Guide Script Lines (10-15 sentences per language) ────
+    const guideScripts = {
+        en: [
+            "Welcome to Jan Suvidha Portal! I am your voice guide.",
+            "I will help you register and find government welfare schemes you are eligible for.",
+            "First, please enter your full name — the name as it appears on your Aadhaar card or any identity document.",
+            "Next, enter your 10-digit mobile phone number. We will send you a one-time password for verification.",
+            "Now choose your preferred language. You can use the portal in English, Hindi, Kannada, Telugu, or Tamil.",
+            "If you want, tick the WhatsApp checkbox so we can send you reminders about schemes you haven't applied for.",
+            "After you click Continue, you will receive a 4-digit OTP. For this demo, the OTP is 1234.",
+            "Enter the OTP and click Verify to complete your registration.",
+            "Once registered, I will ask you 12 simple questions about your livelihood, income, and location.",
+            "Based on your answers, our system will find all the government schemes you are eligible for.",
+            "Each scheme will show a Benefit Probability percentage — your chance of getting the benefit.",
+            "You can then upload your documents like Aadhaar, income certificate, and land records.",
+            "The more documents you upload, the higher your benefit probability becomes!",
+            "This portal is completely free, safe, and built for citizens like you.",
+            "Let us begin! Please type your name in the first box.",
+        ],
+        hi: [
+            "जन सुविधा पोर्टल में आपका स्वागत है! मैं आपका वॉइस गाइड हूँ।",
+            "मैं आपको रजिस्टर करने और सरकारी कल्याण योजनाओं को खोजने में मदद करूँगा।",
+            "सबसे पहले, अपना पूरा नाम दर्ज करें — जैसा आपके आधार कार्ड पर लिखा है।",
+            "अगला, अपना 10 अंकों का मोबाइल नंबर दर्ज करें। हम आपको सत्यापन के लिए OTP भेजेंगे।",
+            "अब अपनी पसंदीदा भाषा चुनें। आप अंग्रेजी, हिंदी, कन्नड़, तेलुगु या तमिल में पोर्टल का उपयोग कर सकते हैं।",
+            "यदि आप चाहें, तो व्हाट्सएप चेकबॉक्स पर टिक करें ताकि हम आपको योजनाओं के बारे में याद दिला सकें।",
+            "जारी रखें बटन पर क्लिक करने के बाद, आपको एक 4 अंकों का OTP मिलेगा। डेमो के लिए OTP 1234 है।",
+            "OTP दर्ज करें और सत्यापित करें पर क्लिक करें।",
+            "रजिस्ट्रेशन के बाद, मैं आपसे 12 सरल प्रश्न पूछूँगा — आपकी आय, व्यवसाय और स्थान के बारे में।",
+            "आपके उत्तरों के आधार पर, हमारा सिस्टम आपके लिए पात्र सभी सरकारी योजनाएं ढूंढेगा।",
+            "हर योजना के साथ एक लाभ प्रतिशत दिखाई देगा — लाभ पाने की आपकी संभावना।",
+            "आप अपने दस्तावेज़ अपलोड कर सकते हैं जैसे आधार, आय प्रमाणपत्र, भूमि रिकॉर्ड।",
+            "जितने अधिक दस्तावेज़ अपलोड करेंगे, लाभ की संभावना उतनी बढ़ेगी!",
+            "यह पोर्टल पूरी तरह मुफ्त, सुरक्षित और आपके लिए बना है।",
+            "चलिए शुरू करते हैं! कृपया पहले बॉक्स में अपना नाम लिखें।",
+        ],
+        kn: [
+            "ಜನ ಸುವಿಧಾ ಪೋರ್ಟಲ್‌ಗೆ ಸ್ವಾಗತ! ನಾನು ನಿಮ್ಮ ವಾಯ್ಸ್ ಗೈಡ್.",
+            "ನೋಂದಣಿ ಮಾಡಲು ಮತ್ತು ಸರ್ಕಾರಿ ಯೋಜನೆಗಳನ್ನು ಹುಡುಕಲು ನಾನು ನಿಮಗೆ ಸಹಾಯ ಮಾಡುತ್ತೇನೆ.",
+            "ಮೊದಲಿಗೆ, ನಿಮ್ಮ ಪೂರ್ಣ ಹೆಸರನ್ನು ನಮೂದಿಸಿ — ನಿಮ್ಮ ಆಧಾರ್ ಕಾರ್ಡ್‌ನಲ್ಲಿ ಇರುವಂತೆ.",
+            "ಮುಂದೆ, ನಿಮ್ಮ 10 ಅಂಕಿ ಮೊಬೈಲ್ ಸಂಖ್ಯೆಯನ್ನು ನಮೂದಿಸಿ.",
+            "ಈಗ ನಿಮ್ಮ ಆದ್ಯತೆಯ ಭಾಷೆಯನ್ನು ಆಯ್ಕೆ ಮಾಡಿ.",
+            "ವಾಟ್ಸಾಪ್ ಮೂಲಕ ನೆನಪಿಸುವಿಕೆಗಳಿಗಾಗಿ ಚೆಕ್‌ಬಾಕ್ಸ್ ಟಿಕ್ ಮಾಡಿ.",
+            "ಮುಂದುವರಿಸಿ ಬಟನ್ ಕ್ಲಿಕ್ ಮಾಡಿ. ಡೆಮೋಗಾಗಿ OTP 1234.",
+            "OTP ನಮೂದಿಸಿ ಮತ್ತು ಪರಿಶೀಲಿಸಿ ಕ್ಲಿಕ್ ಮಾಡಿ.",
+            "ನೋಂದಣಿಯ ನಂತರ, ನಾನು 12 ಸರಳ ಪ್ರಶ್ನೆಗಳನ್ನು ಕೇಳುತ್ತೇನೆ.",
+            "ನಿಮ್ಮ ಉತ್ತರಗಳ ಆಧಾರದ ಮೇಲೆ ಅರ್ಹ ಯೋಜನೆಗಳನ್ನು ಕಂಡುಹಿಡಿಯುತ್ತೇವೆ.",
+            "ದಾಖಲೆಗಳನ್ನು ಅಪ್‌ಲೋಡ್ ಮಾಡಿ ಲಾಭದ ಸಂಭವನೀಯತೆ ಹೆಚ್ಚಿಸಿ!",
+            "ಈ ಪೋರ್ಟಲ್ ಸಂಪೂರ್ಣ ಉಚಿತ ಮತ್ತು ಸುರಕ್ಷಿತ.",
+            "ಪ್ರಾರಂಭಿಸೋಣ! ದಯವಿಟ್ಟು ನಿಮ್ಮ ಹೆಸರನ್ನು ಟೈಪ್ ಮಾಡಿ.",
+        ],
+        te: [
+            "జన సువిధా పోర్టల్‌కు స్వాగతం! నేను మీ వాయిస్ గైడ్‌ని.",
+            "మీరు నమోదు చేసుకోవడానికి మరియు ప్రభుత్వ సంక్షేమ పథకాలను కనుగొనడానికి నేను సహాయం చేస్తాను.",
+            "మొదట, మీ పూర్తి పేరు నమోదు చేయండి — మీ ఆధార్ కార్డ్‌లో ఉన్నట్లుగానే.",
+            "తర్వాత, మీ 10 అంకెల మొబైల్ నంబర్ నమోదు చేయండి. మేము ధృవీకరణ కోసం OTP పంపుతాము.",
+            "ఇప్పుడు మీకు ఇష్టమైన భాషను ఎంచుకోండి.",
+            "వాట్సాప్ ద్వారా రిమైండర్లు కోసం చెక్‌బాక్స్ టిక్ చేయండి.",
+            "కొనసాగించు బటన్ క్లిక్ చేయండి. డెమో కోసం OTP 1234.",
+            "OTP నమోదు చేసి వెరిఫై క్లిక్ చేయండి.",
+            "నమోదు తర్వాత, నేను 12 సరళమైన ప్రశ్నలు అడుగుతాను — మీ ఆదాయం, వృత్తి మరియు ప్రదేశం గురించి.",
+            "మీ సమాధానాల ఆధారంగా, మీకు అర్హమైన అన్ని పథకాలను కనుగొంటాము.",
+            "ప్రతి పథకంతో ప్రయోజన శాతం చూపబడుతుంది — ప్రయోజనం పొందే మీ అవకాశం.",
+            "మీ పత్రాలను అప్‌లోడ్ చేయండి — ఆధార్, ఆదాయ ధృవీకరణ పత్రం, భూమి రికార్డులు.",
+            "ఎక్కువ పత్రాలు అప్‌లోడ్ చేస్తే, ప్రయోజన అవకాశం ఎక్కువ అవుతుంది!",
+            "ఈ పోర్టల్ పూర్తిగా ఉచితం మరియు సురక్షితం.",
+            "ప్రారంభిద్దాం! దయచేసి మొదటి బాక్స్‌లో మీ పేరు టైప్ చేయండి.",
+        ],
+        ta: [
+            "ஜன சுவிதா போர்ட்டலுக்கு வரவேற்கிறோம்! நான் உங்கள் குரல் வழிகாட்டி.",
+            "நீங்கள் பதிவு செய்து அரசு நல திட்டங்களைக் கண்டறிய நான் உதவுவேன்.",
+            "முதலில், உங்கள் முழு பெயரை உள்ளிடுங்கள் — உங்கள் ஆதார் அட்டையில் உள்ளதைப் போலவே.",
+            "அடுத்து, உங்கள் 10 இலக்க மொபைல் எண்ணை உள்ளிடுங்கள். சரிபார்ப்புக்கு OTP அனுப்புவோம்.",
+            "இப்போது உங்கள் விருப்பமான மொழியைத் தேர்வு செய்யுங்கள்.",
+            "WhatsApp மூலம் நினைவூட்டல்கள் பெற செக்பாக்ஸை டிக் செய்யுங்கள்.",
+            "தொடரவும் பொத்தானை கிளிக் செய்யுங்கள். டெமோவுக்கு OTP 1234.",
+            "OTP உள்ளிட்டு சரிபார்க்கவும் கிளிக் செய்யுங்கள்.",
+            "பதிவுக்குப் பிறகு, நான் 12 எளிய கேள்விகள் கேட்பேன் — உங்கள் வருமானம், தொழில், இருப்பிடம் பற்றி.",
+            "உங்கள் பதில்களின் அடிப்படையில், தகுதியான அனைத்து திட்டங்களையும் கண்டுபிடிப்போம்.",
+            "ஒவ்வொரு திட்டத்திலும் பயன் சதவீதம் காட்டப்படும் — பயன் பெறுவதற்கான உங்கள் வாய்ப்பு.",
+            "உங்கள் ஆவணங்களைப் பதிவேற்றுங்கள் — ஆதார், வருமான சான்றிதழ், நில ஆவணங்கள்.",
+            "அதிக ஆவணங்கள் பதிவேற்றினால், பயன் வாய்ப்பு அதிகமாகும்!",
+            "இந்த போர்ட்டல் முற்றிலும் இலவசம் மற்றும் பாதுகாப்பானது.",
+            "தொடங்குவோம்! முதல் பெட்டியில் உங்கள் பெயரை டைப் செய்யுங்கள்.",
+        ],
+    };
+
+    let currentGuideIndex = 0;
+    let guideLang = lang;
+    let isGuideActive = false;
+    let isPaused = false;
+
+    function toggleVoiceAssistant() {
+        const panel = document.getElementById('voicePanel');
+        panel.classList.toggle('hidden');
+        const fab = document.getElementById('voiceFab');
+        fab.classList.toggle('active');
+    }
+
+    function closeVoicePanel() {
+        document.getElementById('voicePanel').classList.add('hidden');
+        document.getElementById('voiceFab').classList.remove('active');
+        stopSpeech();
+        isGuideActive = false;
+    }
+
+    function startVoiceGuide() {
+        isGuideActive = true;
+        isPaused = false;
+        currentGuideIndex = 0;
+        document.getElementById('playBtn').classList.add('hidden');
+        document.getElementById('pauseBtn').classList.remove('hidden');
+        speakCurrentSentence();
+    }
+
+    function speakCurrentSentence() {
+        const scripts = guideScripts[guideLang] || guideScripts.en;
+        if (currentGuideIndex >= scripts.length) {
+            // Guide complete
+            document.getElementById('voiceStatus').textContent = 'Guide complete!';
+            document.getElementById('currentSpeechText').textContent = 'Guide finished. You can start filling the form now!';
+            document.getElementById('playBtn').classList.remove('hidden');
+            document.getElementById('pauseBtn').classList.add('hidden');
+            isGuideActive = false;
+            updateVoiceProgress();
+            return;
+        }
+
+        const text = scripts[currentGuideIndex];
+        document.getElementById('currentSpeechText').textContent = text;
+        document.getElementById('voiceStatus').textContent = `Speaking (${currentGuideIndex + 1}/${scripts.length})...`;
+        updateVoiceProgress();
+
+        // Highlight related form field
+        highlightField(currentGuideIndex);
+
+        stopSpeech();
+        speakText(text, guideLang);
+
+        // Wait for speech to finish, then auto-advance
+        const estimatedDuration = text.length * 80; // ~80ms per character
+        setTimeout(() => {
+            if (isGuideActive && !isPaused) {
+                currentGuideIndex++;
+                speakCurrentSentence();
+            }
+        }, Math.max(estimatedDuration, 3000));
+    }
+
+    function nextSentence() {
+        stopSpeech();
+        const scripts = guideScripts[guideLang] || guideScripts.en;
+        currentGuideIndex = Math.min(currentGuideIndex + 1, scripts.length - 1);
+        if (isGuideActive) {
+            speakCurrentSentence();
+        } else {
+            isGuideActive = true;
+            isPaused = false;
+            document.getElementById('playBtn').classList.add('hidden');
+            document.getElementById('pauseBtn').classList.remove('hidden');
+            speakCurrentSentence();
+        }
+    }
+
+    function repeatSentence() {
+        stopSpeech();
+        if (!isGuideActive) {
+            isGuideActive = true;
+            isPaused = false;
+            document.getElementById('playBtn').classList.add('hidden');
+            document.getElementById('pauseBtn').classList.remove('hidden');
+        }
+        speakCurrentSentence();
+    }
+
+    function pauseGuide() {
+        isPaused = true;
+        isGuideActive = false;
+        stopSpeech();
+        document.getElementById('voiceStatus').textContent = 'Paused';
+        document.getElementById('playBtn').classList.remove('hidden');
+        document.getElementById('pauseBtn').classList.add('hidden');
+        document.getElementById('playBtn').innerHTML = '<i class="fas fa-play"></i> Resume';
+        document.getElementById('playBtn').onclick = resumeGuide;
+    }
+
+    function resumeGuide() {
+        isGuideActive = true;
+        isPaused = false;
+        document.getElementById('playBtn').classList.add('hidden');
+        document.getElementById('pauseBtn').classList.remove('hidden');
+        speakCurrentSentence();
+    }
+
+    function updateVoiceProgress() {
+        const scripts = guideScripts[guideLang] || guideScripts.en;
+        const pct = ((currentGuideIndex + 1) / scripts.length) * 100;
+        document.getElementById('voiceProgressBar').style.width = pct + '%';
+    }
+
+    function changeVoiceLang(newLang) {
+        guideLang = newLang;
+        currentGuideIndex = 0;
+        if (isGuideActive) {
+            stopSpeech();
+            speakCurrentSentence();
+        }
+    }
+
+    function highlightField(index) {
+        // Remove previous highlights
+        document.querySelectorAll('.form-group').forEach(g => g.classList.remove('highlight-field'));
+        // Highlight based on sentence index
+        if (index === 2) document.getElementById('nameInput')?.closest('.form-group')?.classList.add('highlight-field');
+        else if (index === 3) document.getElementById('phoneInput')?.closest('.form-group')?.classList.add('highlight-field');
+        else if (index === 4) document.getElementById('langSelect')?.closest('.form-group')?.classList.add('highlight-field');
+        else if (index === 5) document.getElementById('whatsappConsent')?.closest('.form-group')?.classList.add('highlight-field');
+    }
+
+    // ──── Registration Form Logic ────
+    let otpSent = false;
+
+    document.getElementById('registerForm').addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const phone = document.getElementById('phoneInput').value.trim();
+        const name = document.getElementById('nameInput').value.trim();
+        const language = document.getElementById('langSelect').value;
+        const whatsapp = document.getElementById('whatsappConsent').checked;
+
+        if (!otpSent) {
+            if (phone.length < 10) { alert('Please enter a valid 10-digit phone number'); return; }
+            document.getElementById('otpSection').classList.remove('hidden');
+            document.getElementById('submitText').textContent = 'Verify & Start';
+            otpSent = true;
+            return;
+        }
+
+        const otp = document.getElementById('otpInput').value;
+        if (otp !== '1234') { alert('Invalid OTP. For demo, use 1234'); return; }
+
+        document.getElementById('submitBtn').disabled = true;
+        document.getElementById('submitText').textContent = 'Please wait...';
+
+        try {
+            const resp = await fetch('/api/register/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone, name, language, whatsapp_consent: whatsapp })
+            });
+            const data = await resp.json();
+            if (data.success) {
+                localStorage.setItem('janSuvidhaLang', language);
+                localStorage.setItem('janSuvidhaUser', data.user_id);
+                window.location.href = '/questionnaire/';
+            } else {
+                alert(data.error || 'Registration failed');
+            }
+        } catch (err) {
+            alert('Connection error. Please try again.');
+        }
+        document.getElementById('submitBtn').disabled = false;
+        document.getElementById('submitText').textContent = 'Verify & Start';
+    });
+</script>
+
+<style>
+    /* ──── Info Banner ──── */
+    .info-banner {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 14px 16px;
+        margin-bottom: 20px;
+        background: rgba(59, 130, 246, 0.08);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        border-radius: 12px;
+        font-size: 13px;
+        color: var(--text-secondary);
+        line-height: 1.5;
+    }
+
+    .info-icon {
+        color: var(--accent);
+        font-size: 18px;
+        margin-top: 1px;
+    }
+
+    .form-hint {
+        display: block;
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 4px;
+    }
+
+    .phone-input-wrapper {
+        position: relative;
+    }
+
+    .phone-prefix {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        font-size: 14px;
+        font-weight: 600;
+        z-index: 2;
+    }
+
+    .trust-badges {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+        margin-top: 16px;
+        padding-top: 12px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .trust-item {
+        font-size: 11px;
+        color: var(--text-muted);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .trust-item i {
+        color: var(--accent);
+        font-size: 12px;
+    }
+
+    /* ──── Highlight form field ──── */
+    .highlight-field {
+        animation: fieldPulse 1.5s ease-in-out;
+        border-radius: 12px;
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.4);
+    }
+
+    @keyframes fieldPulse {
+
+        0%,
+        100% {
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+
+        50% {
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.4);
+        }
+    }
+
+    /* ──── Floating Voice FAB ──── */
+    .voice-assistant-fab {
+        position: fixed;
+        bottom: 32px;
+        right: 32px;
+        z-index: 1000;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .fab-icon {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: var(--gradient-primary);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        box-shadow: 0 6px 24px rgba(59, 130, 246, 0.4);
+        transition: transform 0.3s, box-shadow 0.3s;
+    }
+
+    .voice-assistant-fab:hover .fab-icon {
+        transform: scale(1.08);
+        box-shadow: 0 8px 32px rgba(59, 130, 246, 0.6);
+    }
+
+    .voice-assistant-fab.active .fab-icon {
+        background: var(--gradient-accent);
+        box-shadow: 0 6px 24px rgba(16, 185, 129, 0.4);
+    }
+
+    .fab-pulse {
+        position: absolute;
+        right: 0;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: rgba(59, 130, 246, 0.2);
+        animation: fabPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes fabPulse {
+
+        0%,
+        100% {
+            transform: scale(1);
+            opacity: 0.6;
+        }
+
+        50% {
+            transform: scale(1.3);
+            opacity: 0;
+        }
+    }
+
+    .fab-label {
+        background: var(--card-bg);
+        color: var(--text-primary);
+        padding: 6px 14px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        white-space: nowrap;
+    }
+
+    /* ──── Voice Panel ──── */
+    .voice-panel {
+        position: fixed;
+        bottom: 110px;
+        right: 32px;
+        z-index: 1001;
+        width: 380px;
+        max-width: calc(100vw - 40px);
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 20px;
+        box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
+        overflow: hidden;
+        animation: panelSlideUp 0.3s ease;
+    }
+
+    @keyframes panelSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .voice-panel.hidden {
+        display: none;
+    }
+
+    .voice-panel-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 16px 20px;
+        background: rgba(59, 130, 246, 0.1);
+        border-bottom: 1px solid var(--border-color);
+    }
+
+    .voice-panel-header h3 {
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin: 0;
+    }
+
+    .voice-panel-header p {
+        font-size: 12px;
+        color: var(--text-muted);
+        margin: 0;
+    }
+
+    .voice-avatar {
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background: var(--gradient-primary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        position: relative;
+        flex-shrink: 0;
+    }
+
+    .voice-ring {
+        position: absolute;
+        inset: -4px;
+        border-radius: 50%;
+        border: 2px solid rgba(59, 130, 246, 0.3);
+        animation: ringPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes ringPulse {
+
+        0%,
+        100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        50% {
+            transform: scale(1.15);
+            opacity: 0.4;
+        }
+    }
+
+    .voice-close {
+        margin-left: auto;
+        background: none;
+        border: none;
+        color: var(--text-muted);
+        font-size: 16px;
+        cursor: pointer;
+        padding: 4px;
+    }
+
+    .voice-transcript {
+        padding: 16px 20px;
+        min-height: 80px;
+        max-height: 120px;
+        overflow-y: auto;
+    }
+
+    .voice-bubble {
+        background: rgba(59, 130, 246, 0.08);
+        border-radius: 12px;
+        padding: 12px 16px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--text-secondary);
+        border-left: 3px solid var(--primary);
+    }
+
+    .voice-controls {
+        display: flex;
+        gap: 8px;
+        padding: 0 20px 12px;
+        flex-wrap: wrap;
+    }
+
+    .voice-ctrl-btn {
+        flex: 1;
+        min-width: 70px;
+        padding: 8px 12px;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        background: var(--surface-bg);
+        color: var(--text-primary);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        transition: all 0.2s;
+    }
+
+    .voice-ctrl-btn:hover {
+        background: rgba(59, 130, 246, 0.1);
+        border-color: var(--primary);
+    }
+
+    .voice-ctrl-btn.play,
+    .voice-ctrl-btn.pause {
+        background: var(--gradient-primary);
+        color: #fff;
+        border: none;
+    }
+
+    .voice-ctrl-btn.hidden {
+        display: none;
+    }
+
+    .voice-progress {
+        height: 3px;
+        background: rgba(255, 255, 255, 0.06);
+        margin: 0 20px 12px;
+        border-radius: 2px;
+        overflow: hidden;
+    }
+
+    .voice-progress-bar {
+        height: 100%;
+        background: var(--gradient-accent);
+        border-radius: 2px;
+        transition: width 0.5s ease;
+    }
+
+    .voice-lang-selector {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 20px 16px;
+        font-size: 12px;
+        color: var(--text-muted);
+    }
+
+    .voice-lang-selector select {
+        background: var(--surface-bg);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+        border-radius: 6px;
+        padding: 4px 8px;
+        font-size: 12px;
+        cursor: pointer;
+    }
+</style>
+{% endblock %}
